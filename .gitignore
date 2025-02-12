@@ -1,2 +1,11 @@
+.vscode
+anp.*
+.bak
+TODO
+.anp
 DOCS/
-.vscode/
+deepseek
+File__Basename - Parse file paths into directory, filename and suffix. - Perldoc Browser.pdf
+Using-a-sqlite-DB.anp
+.history/
+DOCS/

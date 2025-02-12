@@ -1,334 +1,203 @@
-#!/bin/perl
+#!/usr/bin/perl
 use utf8;
 use strict;
+use warnings;
 use autodie;
+use feature 'say';
 use v5.34;
-
-=pod
-
-                       _                       
-        __  ____  ____| |_   _ _ __   ___  ___ 
-        \ \/ /\ \/ / _` | | | | '_ \ / _ \/ __|
-        >  <  >  < (_| | |_| | |_) |  __/\__ \
-        /_/\_\/_/\_\__,_|\__,_| .__/ \___||___/
-                            |_|              
-
-
-=head1 NAME 
-
-    xxdupes folder r d l
-
-=head1 SYNOPSIS 
-
-    Target folder
-    -r              Recurse
-    -d              Delete duplicates
-    -l              crate symlink
-
-=head1 USAGE
-
-=head1 DESCIPTION
-
-=head1 OPTIONS
-
-=head1 DIAGNOSTICS
-
-=head1 EXIT STATUS
-
-=head1 CONFIGURATION
-
-=head1 DEPENDENCIES
-        b3sum
-
-=head1 INCOMPATIBILITIES
-
-=head1 BUGS AND LIMITATIONS
-    The program finish with and an error related to the Sqlite data base.
-    It have no impact in the program which otherwise runs perfect.
-
-=head1 AUTHOR
-
-=head1 LINCENSE AND COPYRIGHT 
-
-=head1 VERSION
-
-our $VERSION = qv('0.7.0');
-
- Date: Tue Mar  5 02:38:01 PM -04 2024
-
-=head1 CHANGES :
- 
-  REF NO  VERSION    DATE      WHO     DETAIL
-    0001   0.6.0  2023-03-04   anp     documentation
-    0002   0.7.0  2024-03-05   anp     removed dbi database name
-    0003   0.7.0  2024-03-05   anp     remplaced md5sum by b3sum
-
- 
-=head1 License
-    This program is free software: you can redistribute it and/or modify it under the terms
-    of the GNU General Public License as published by the Free Software Foundation, either
-    version 3 of the License, or (at your option) any later version.
-    This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
-    without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-    See the GNU General Public License for more details.
-    You should have received a copy of the GNU General Public License along with this program.
-    If not, see <https://www.gnu.org/licenses/>. 
- 
-
-=cut
-
 use Cwd;
 use DBI;
 use File::Basename;
+use Getopt::Long;
 
-# use File::Copy;
+=pod
+                             _     _                       
+                    __  ____| | __| |_   _ _ __   ___  ___ 
+                    \ \/ / _` |/ _` | | | | '_ \ / _ \/ __|
+                     >  < (_| | (_| | |_| | |_) |  __/\__ \
+                    /_/\_\__,_|\__,_|\__,_| .__/ \___||___/
+                                          |_|              
+=head1 NAME 
 
-my $cdir;
+    xdupes - Find and manage duplicate files
 
-# my $database = "xddupes.db";
-my $database = "";
+=head1 SYNOPSIS 
 
-# my $date;
-our $VERSION = q('0.7.0');
-my $driver = "SQLite";
-my $dsn    = "DBI:$driver:dbname=$database";
-my $delete;
-my $link;
-my $recnum = 0;
-my $recdel = 0;
-my $recdup = 0;
+    xxdupes folder [-r] [-d] [-l]
 
-# my $log;
-my $par2;
-my $par3;
-my $password = "";
-my $rdirectory;
-my $recurse;
-my $report;
-my $userid = "";
-my $vdirectory;
-my $Repfh;
-my $rc;
+=head1 DESCRIPTION
 
-# $date = today();
+    This script finds duplicate files in the specified folder and optionally
+    deletes them or creates symlinks to the original files.
 
-# system("rm -f $database");
+=head1 OPTIONS
 
-my $dbh = DBI->connect( $dsn, $userid, $password, { RaiseError => 1, AutoCommit => 0 } )
-    or die $DBI::errstr;
+    -r      Recurse into subdirectories
+    -d      Delete duplicates
+    -l      Create symlinks to original files
 
-# say "Opened database successfully\n";
+=head1 AUTHOR
 
-my $stmt = qq(CREATE TABLE FILES
-    (MD5  TEXT  PRIMARY KEY     NOT NULL,
-    FILENAME           TEXT    NOT NULL););
+    Agustin Navarro
 
-my $rv = $dbh->do($stmt);
+=head1 LICENSE
 
-if ( $rv < 0 ) {
-    say $DBI::errstr;
-}
-else {
-    # say "Table created successfully\n";
-}
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
 
-my $insh = $dbh->prepare_cached('INSERT INTO FILES (MD5, FILENAME) VALUES (?,?)')
-    or die "Couldn't prepare insertstatement: " . $dbh->errstr;
+=head1 CHANGES :
+ 
+  REF NO   VERSION  DATE     WHO     DETAIL
+    0001   0.6.0  23-03-04   anp     documentation
+    0002   0.7.0  24-03-05   anp     removed dbi database name
+    0003   0.7.0  24-03-05   anp     remplaced md5sum by b3sum
+    0004   0.7.1  25-02-09   anp     remplaced b3sum by sha3sum
+    0005   0.8.0  25-02-10   anp     Deepseek Key Changes:
+		1. **Command-line Argument Parsing**: Used `Getopt::Long` for better argument handling.
+		2. **Code Refactoring**: Broke down large functions into smaller ones and improved variable names.
+	0006   0.8.1  25-02-11   anp     Gemini Key Changes:
+		1. **Improvent comments for better documentation.
+	    2. **Integrate sole of the folder and file proceses.
+        3. **Change some variable names for better clarity
 
-my $selh = $dbh->prepare_cached('SELECT FILENAME FROM FILES WHERE MD5 = ?')
-    or die "Couldn't prepare select statement: " . $dbh->errstr;
+=cut
 
-unless (@ARGV) {
-    die "No Directory To Report\n";
-}
+our $VERSION = '0.8.1';
 
-#  $#ARGV is the total number of arguments.  First argument is  $ARGV[0]
+# Configuration variables
+my $database = ""; # Database file (currently unused, but kept for potential future use)
+my $driver   = "SQLite";
+my $dsn      = "DBI:$driver:dbname=$database";
+my $delete   = 0;
+my $link     = 0;
+my $recurse  = 0;
+my $shasum   = "sha3sum -a 512 ";    # Command to calculate SHA512 checksums
 
-$rdirectory = shift(@ARGV);
-unless ( -d $rdirectory ) {
-    die "Invalid Directory specification";
-}
+# Counters for statistics
+my $total_files     = 0;
+my $duplicate_files = 0;
+my $deleted_files   = 0;
 
-#$report = "/home/anp/tmp/" . today() . "-xddupes.csv";
-#open( $Repfh, ">", "$report" ) or die "Could not open the report file";
+# Get command-line options
+GetOptions(
+    'r|recurse' => \$recurse,
+    'd|delete'  => \$delete,
+    'l|link'    => \$link,
+) or die "Usage: $0 <directory> [options]\n";
 
-$par2 = shift(@ARGV);
-if ( $par2 eq "r" ) {
-    $recurse = "r";
-}
-if ( $par2 eq "d" ) {
-    $delete = "d";
-}
+# Check for required directory argument
+my $directory = shift(@ARGV) or die "No directory specified.\n";
 
-if ( $par2 eq "l" ) {
-    $link = "l";
-}
+# Handle "." as current directory
+$directory = getcwd if $directory eq ".";
 
-$par3 = shift(@ARGV);
-if ( $par3 eq "d" ) {
-    $delete = "d";
-}
+# Validate directory
+die "Invalid directory: $directory\n" unless -d $directory;
 
-if ( $par3 eq "l" ) {
-    $link = "l";
-}
+# Add trailing slash if necessary
+$directory .= "/" unless substr( $directory, -1, 1 ) eq "/";
 
-unless ( substr( $rdirectory, -1, 1 ) eq "/" ) {
-    $rdirectory .= "/";
-}
+# Database connection (using SQLite)
+my $dbh = DBI->connect( $dsn, "", "", { RaiseError => 1, AutoCommit => 0 } )
+  or die "Database connection failed: $DBI::errstr";
 
-$cdir       = getcwd();
-$vdirectory = basename($rdirectory);
+# Create the FILES table if it doesn't exist
+$dbh->do(
+    qq(
+    CREATE TABLE IF NOT EXISTS FILES (
+        SHA512 TEXT PRIMARY KEY NOT NULL,
+        FILENAME TEXT NOT NULL
+    )
+)
+);
 
-$vdirectory .= "/";
-say "\nEntering $rdirectory";
-sdirectory( $vdirectory, $rdirectory );
+# Prepare statements for efficiency
+my $insert_statement =
+  $dbh->prepare_cached('INSERT INTO FILES (SHA512, FILENAME) VALUES (?,?)')
+  or die "Couldn't prepare insert statement: " . $dbh->errstr;
 
-system("sync");
+my $select_statement =
+  $dbh->prepare_cached('SELECT FILENAME FROM FILES WHERE SHA512 = ?')
+  or die "Couldn't prepare select statement: " . $dbh->errstr;
 
-# system("rm -f $database");
+# Process the directory recursively
+process_directory($directory);
 
-say "total files = ", $recnum, " total dup = ", $recdup, " total deleted = ", $recdel;
+# Print summary statistics
+say
+"Total files: $total_files, Total duplicates: $duplicate_files, Total deleted: $deleted_files";
+
+# Disconnect from the database
+# $dbh->disconnect;
 
 exit(0);
 
-sub sdirectory {
+# Subroutine to process a directory
+sub process_directory {
+    my ($dir) = @_;
+    say "Entering $dir";
 
-    my $name;
-    my $rdir2;
-    my $rdir;
-    my $vdir2;
-    my $vdir;
-    my @alldir;
-    my $Dirfh;
+    opendir( my $dh, $dir ) or die "Could not open directory $dir: $!";
+    my @files_and_dirs = readdir $dh;
+    closedir $dh;
 
-    ( $vdir, $rdir ) = @_;
+    foreach my $entry ( sort @files_and_dirs ) {
+        next
+          if $entry eq '.'
+          or $entry eq '..'
+          or $entry eq "lost+found";    # Skip special entries
 
-    # say "||2 || ", $vdir, " ||| ", $rdir, " |||";
+        my $full_path = "$dir$entry";
 
-    #say "Openning directory.. ", "$rdir";
-    
-    print "*";
-
-    opendir( $Dirfh, "$rdir" ) or die "Could Not Open The Directory";
-    @alldir = readdir $Dirfh;
-    closedir($Dirfh);
-
-    foreach my $name ( sort @alldir ) {
-
-        print ".";
-
-
-        if ( "$name" eq '.' or "$name" eq '..' or "$name" eq "lost+found" ) {
-            next;
+        if ( -d $full_path && $recurse ) {
+            process_directory("$full_path/")
+              ;                         # Recursive call for subdirectories
         }
-
-        # say "||2a || ", $name;
-
-        $rdir2 = $rdir . "$name";
-
-        # say "||2c || ", $rdir2, " ||| ", $recurse;
-
-        if ( -d "$rdir2" and $recurse eq "r" ) {
-            $vdir2 = "$vdir" . $name . "/";
-            $rdir2 = $rdir2 . "/";
-            sdirectory( "$vdir2", "$rdir2" );
+        elsif ( -f $full_path && $entry ne "xddupes.db" )
+        {    # Process regular files, excluding the database
+            process_file($full_path);
         }
-
-        # say "||3 || ", $vdir, " ||| ", $rdir, " |||";
-
-        if ( -f "$rdir2" ) {
-            if ( "$name" eq "xddupes.db" ) {
-                next;
-            }
-
-            srfile( "$rdir", "$name" );
-        }
-
     }
-
-    return;
 }
 
-sub srfile {
+# Subroutine to process a file
+sub process_file {
+    my ($filename) = @_;
+    print ".";    # Progress indicator
 
-    my $file;
-    my $filemd5;
-    my $filename;
-    my $rdir;
-    my $tfilename;
-    my $trashcmd;
-    my $rows;
-    my $sha;
-    my $rest;
+    $total_files++;
 
-    ( $rdir, $file ) = @_;
+    my $sha = `$shasum "$filename"`;
+    my ($sha512) = split( ' ', $sha );      # Extract the SHA512 hash
 
-    # say "$rdir", "$file";
+    $select_statement->execute($sha512)
+      or die "Couldn't execute select statement: " . $select_statement->errstr;
+    my ($original_filename) = $select_statement->fetchrow_array();
 
-    # say "||4 || ", $rdir, " ||| ", $file, " |||";
+    if ( !$original_filename ) {
 
-    # =======================================#
-    # 1. check the md5 sum of the file
-    # 2. check if is there a file with the same md5 sum
-    # 3 if there is, optionally delete the file and or create a symlink to the original
-    # 4 if there is not, create a new entry
-    #
-
-    $recnum += 1;
-    $filename = qq[$rdir] . qq[$file];
-
-    #say $filename;
-
-    
-
-    # $sha = `sha256sum \"$filename\"`;
-
-    $sha = `b3sum \"$filename\"`;     #Alternate sum faster algorithm
-
-    ( $filemd5, $rest ) = split( ' ', $sha );
-
-    $selh->execute(qq[$filemd5])
-        or die "Couldn't execute select statement: " . $selh->errstr;
-
-    ($rows) = $selh->rows();
-
-    ($tfilename) = $selh->fetchrow_array();
-
-    #    if $tfilename in null, this is a new file and needs to be included in the data base
-    #    otherwise is a duplicate and has to be deleted
-
-    if ( "$tfilename" eq "" ) {
-
-        my $rv = $insh->execute( qq[$filemd5], qq[$filename] ) or die $DBI::errstr;
-        my $rc = $dbh->commit                                  or die $dbh->errstr;
-
+        # New file, insert into database
+        $insert_statement->execute( $sha512, $filename ) or die $DBI::errstr;
+        $dbh->commit                                     or die $dbh->errstr;
     }
-
     else {
+        # Duplicate file found
+        $duplicate_files++;
+        say "\nDuplicate file: $filename --> $original_filename";
 
-        $recdup += 1;
-
-        print "\n";
-
-        say "\n", "Duplicate file:", "$filename", "  -->  ", "$tfilename";
-
-        #say $Repfh "Duplicate: ", "$filename", ";", "$tfilename";
-
-        if ( $delete or "$link" ) {
-
-            unlink("$filename") or die 'Could not delete "$filename"!\n';
-            $recdel += 1;
-
+        if ($delete | $link) {
+            unlink($filename) or die "Could not delete $filename: $!";
+            $deleted_files++;
         }
 
-        if ("$link") {
-            symlink( "$tfilename", "$filename" );
-
+        if ($link) {
+            symlink( $original_filename, $filename )
+              or die "Could not create symlink: $!";
         }
-
-        # say "Database file entry :  ", $rows, " ||| ", $filemd5, " ||| ",
-        #    $filename, " ||| ", $tfilename;
     }
-
 }
+
+#
+#
