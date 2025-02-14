@@ -67,13 +67,15 @@ use Getopt::Long;
 our $VERSION = '0.8.1';
 
 # Configuration variables
-my $database = ""; # Database file (currently unused, but kept for potential future use)
+my $database = "";                               # Database file (currently unused, but kept for potential future use)
 my $driver   = "SQLite";
 my $dsn      = "DBI:$driver:dbname=$database";
 my $delete   = 0;
 my $link     = 0;
 my $recurse  = 0;
-my $shasum   = "sha3sum -a 512 ";    # Command to calculate SHA512 checksums
+my $help     = 0;
+my $help_text = "";
+my $shasum   = "sha3sum -a 512 ";                # Command to calculate SHA512 checksums
 
 # Counters for statistics
 my $total_files     = 0;
@@ -85,7 +87,27 @@ GetOptions(
     'r|recurse' => \$recurse,
     'd|delete'  => \$delete,
     'l|link'    => \$link,
+    'h|help'    => \$help,
 ) or die "Usage: $0 <directory> [options]\n";
+
+if ($help) {
+    $help_text = <<"END-TEXT";
+$0 folder [-r] [-d] [-l]
+
+finds duplicate files in the specified folder and optionally
+    deletes them or creates symlinks to the original files.
+
+OPTIONS
+
+    -r      Recurse into subdirectories
+    -d      Delete duplicates
+    -l      Create symlinks to original files
+
+END-TEXT
+
+    print("\n$help_text\n");
+    exit(0);
+}
 
 # Check for required directory argument
 my $directory = shift(@ARGV) or die "No directory specified.\n";
@@ -109,25 +131,22 @@ $dbh->do(
     CREATE TABLE IF NOT EXISTS FILES (
         SHA512 TEXT PRIMARY KEY NOT NULL,
         FILENAME TEXT NOT NULL
+        )
     )
-)
 );
 
 # Prepare statements for efficiency
-my $insert_statement =
-  $dbh->prepare_cached('INSERT INTO FILES (SHA512, FILENAME) VALUES (?,?)')
+my $insert_statement = $dbh->prepare_cached('INSERT INTO FILES (SHA512, FILENAME) VALUES (?,?)')
   or die "Couldn't prepare insert statement: " . $dbh->errstr;
 
-my $select_statement =
-  $dbh->prepare_cached('SELECT FILENAME FROM FILES WHERE SHA512 = ?')
+my $select_statement = $dbh->prepare_cached('SELECT FILENAME FROM FILES WHERE SHA512 = ?')
   or die "Couldn't prepare select statement: " . $dbh->errstr;
 
 # Process the directory recursively
 process_directory($directory);
 
 # Print summary statistics
-say
-"Total files: $total_files, Total duplicates: $duplicate_files, Total deleted: $deleted_files";
+say "Total files: $total_files, Total duplicates: $duplicate_files, Total deleted: $deleted_files";
 
 # Disconnect from the database
 # $dbh->disconnect;
@@ -152,11 +171,9 @@ sub process_directory {
         my $full_path = "$dir$entry";
 
         if ( -d $full_path && $recurse ) {
-            process_directory("$full_path/")
-              ;                         # Recursive call for subdirectories
+            process_directory("$full_path/");    # Recursive call for subdirectories
         }
-        elsif ( -f $full_path && $entry ne "xddupes.db" )
-        {    # Process regular files, excluding the database
+        elsif ( -f $full_path && $entry ne "xddupes.db" ) {    # Process regular files, excluding the database
             process_file($full_path);
         }
     }
@@ -187,7 +204,7 @@ sub process_file {
         $duplicate_files++;
         say "\nDuplicate file: $filename --> $original_filename";
 
-        if ($delete | $link) {
+        if ( $delete | $link ) {
             unlink($filename) or die "Could not delete $filename: $!";
             $deleted_files++;
         }
