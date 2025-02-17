@@ -40,12 +40,17 @@ use Getopt::Long;
 
     Agustin Navarro
 
-=head1 LICENSE
-
-    This program is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation, either version 3 of the License, or
-    (at your option) any later version.
+=head1 License
+    This program is free software: you can redistribute it and/or modify it under the terms
+    of the GNU General Public License as published by the Free Software Foundation, either
+    version 3 of the License, or (at your option) any later version.
+    This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+    without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+    See the GNU General Public License for more details.
+    You should have received a copy of the GNU General Public License along with this program.
+    If not, see <https://www.gnu.org/licenses/>. 
+ 
+Copyright (C) 2025 Agustin Navarro (agustin.navarro@gmail.com)
 
 =head1 CHANGES :
  
@@ -57,25 +62,25 @@ use Getopt::Long;
     0005   0.8.0  25-02-10   anp     Deepseek Key Changes:
 		1. **Command-line Argument Parsing**: Used `Getopt::Long` for better argument handling.
 		2. **Code Refactoring**: Broke down large functions into smaller ones and improved variable names.
-	0006   0.8.1  25-02-11   anp     Gemini Key Changes:
+     0006   0.8.1  25-02-11   anp     Gemini Key Changes:
 		1. **Improvent comments for better documentation.
-	    2. **Integrate sole of the folder and file proceses.
-        3. **Change some variable names for better clarity
+	        2. **Integrate sole of the folder and file proceses.
+                3. **Change some variable names for better clarity
 
 =cut
 
 our $VERSION = '0.8.1';
 
 # Configuration variables
-my $database = "";                               # Database file (currently unused, but kept for potential future use)
-my $driver   = "SQLite";
-my $dsn      = "DBI:$driver:dbname=$database";
-my $delete   = 0;
-my $link     = 0;
-my $recurse  = 0;
-my $help     = 0;
+my $database  = "";                               # Database file (currently unused, but kept for potential future use)
+my $driver    = "SQLite";
+my $dsn       = "DBI:$driver:dbname=$database";
+my $delete    = 0;
+my $link      = 0;
+my $recurse   = 0;
+my $help      = 0;
 my $help_text = "";
-my $shasum   = "sha3sum -a 512 ";                # Command to calculate SHA512 checksums
+my $shasum    = "sha3sum -a 512 ";                # Command to calculate SHA512 checksums
 
 # Counters for statistics
 my $total_files     = 0;
@@ -149,7 +154,7 @@ process_directory($directory);
 say "Total files: $total_files, Total duplicates: $duplicate_files, Total deleted: $deleted_files";
 
 # Disconnect from the database
-# $dbh->disconnect;
+# $dbh->disconnect;     #  disconnet from the database produces an error now
 
 exit(0);
 
@@ -173,7 +178,7 @@ sub process_directory {
         if ( -d $full_path && $recurse ) {
             process_directory("$full_path/");    # Recursive call for subdirectories
         }
-        elsif ( -f $full_path && $entry ne "xddupes.db" ) {    # Process regular files, excluding the database
+        elsif ( -f $full_path ) {    # Process regular files, excluding the database
             process_file($full_path);
         }
     }
