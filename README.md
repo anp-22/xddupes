@@ -11,15 +11,21 @@
 
 ## Requirements
 
-use utf8;
-use feature 'say';
-use v5.34;
-use Cwd;
-use DBI;
-use File::Basename;
-use Getopt::Long;
+utf8
 
-## Running sanitazer
+feature 'say'
+
+v5.34
+
+Cwd
+
+DBI
+
+File::Basename
+
+Getopt::Long
+
+## Running xddupes
 To run xddupes
 
  xxdupes folder [-r] [-d] [-l]
