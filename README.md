@@ -54,7 +54,7 @@ Copyright (C) 2025 Agustin Navarro (agustin.navarro@gmail.com)
 
 # WARNING WARNING WARNING WARNING WARNING WARNING WARNING WARNING
 
-xddupes can quickly corrupt the system. Ensure it is run in a directory where you can errase du[licate files
+xddupes can quickly corrupt the system. Ensure it is run in a directory where you can errase duplicate files
 
 
 
