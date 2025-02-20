@@ -1,4 +1,4 @@
-# Sanitazer
+# Xddupes
                              _     _                       
                     __  ____| | __| |_   _ _ __   ___  ___ 
                     \ \/ / _` |/ _` | | | | '_ \ / _ \/ __|
@@ -10,21 +10,13 @@
 
 
 ## Requirements
-
-utf8
-
-feature 'say'
-
-v5.34
-
-Cwd
-
-DBI
-
-File::Basename
-
-Getopt::Long
-
+  * utf8
+  * feature 'say'
+  * v5.34
+  * Cwd
+  * DBI
+  * File::Basename
+  * Getopt::Long
 ## Running xddupes
 To run xddupes
 
