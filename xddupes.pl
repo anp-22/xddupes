@@ -161,8 +161,7 @@ exit(0);
 # Subroutine to process a directory
 sub process_directory {
     my ($dir) = @_;
-    say "Entering $dir";
-
+    
     opendir( my $dh, $dir ) or die "Could not open directory $dir: $!";
     my @files_and_dirs = readdir $dh;
     closedir $dh;
